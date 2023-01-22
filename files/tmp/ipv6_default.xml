@@ -1,0 +1,9 @@
+<network>
+  <name>default</name>
+  <uuid>35e34eea-0971-4d18-b37a-64aa1d7e5660</uuid>
+  <forward mode="route"/>
+  <bridge name='virbr0' stp='on' delay='0'/>
+  <mac address='52:54:00:04:34:03'/>
+  <ip family='ipv6' address='2a01:4f9:6a:202c::1' prefix='96'>
+  </ip>
+</network>

@@ -1,0 +1,41 @@
+---
+
+- name: Ensure all packages to run kvm are present
+  apt:
+    pkg:
+    - bridge-utils
+    - dnsmasq
+    - gir1.2-spiceclientgtk-3.0
+    - libguestfs-tools
+    - libosinfo-bin
+    - libvirt-daemon
+    - libvirt-daemon-system
+    - libvirt-clients
+    - ovmf
+    - virtinst
+    - virt-manager
+    - virt-top
+    - qemu-kvm
+    - qemu-system
+    - qemu-utils
+
+- name: Append groups 'libvirt' and 'libvirt-qemu' to user 'tycho'
+  user:
+    name: tycho
+    groups: libvirt,libvirt-qemu
+    append: yes
+
+- name: Update dnsmasq.conf for no DHCP and no DNS
+  ansible.builtin.template:
+    src: templates/etc/dnsmasq.conf.j2
+    dest: /etc/dnsmasq.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Add the vhost_net module
+    community.general.modprobe:
+      name: vhost_net
+      state: present
+                  
+...

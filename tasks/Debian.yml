@@ -1,0 +1,84 @@
+---
+
+- name: Ensure all packages to run kvm are present
+  apt:
+    pkg:
+    - bridge-utils
+    - dnsmasq
+    - gir1.2-spiceclientgtk-3.0
+    - libguestfs-tools
+    - libosinfo-bin
+    - libvirt-daemon-system
+    - libvirt-clients
+    - ovmf
+    - virt-manager
+    - qemu-kvm
+    - qemu-utils
+
+- name: Append groups 'libvirt' and 'libvirt-qemu' to user 'tycho'
+  user:
+    name: tycho
+    groups: libvirt,libvirt-qemu
+    append: yes
+
+- name: Update dnsmasq.conf for no DHCP and no DNS
+  ansible.builtin.template:
+    src: templates/etc/dnsmasq.conf.j2
+    dest: /etc/dnsmasq.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Check if sysctl value is set in sysctl.conf
+  ansible.builtin.command: grep -c "^#net.ipv6.conf.all.forwarding=1" /etc/sysctl.conf 
+  register: ipv6_forward_line_result
+  ignore_errors: true
+
+- name: Set kernel value net.ipv6.conf.all.forwarding=1
+  ansible.builtin.command: sysctl -w net.ipv6.conf.all.forwarding=1
+  when: ipv6_forward_line_result.stdout == 0
+
+- name:  Change "#net.ipv6.conf.all.forwarding=1" line in file /etc/sysctl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/sysctl.conf
+    regexp: '^#net.ipv6.conf.all.forwarding=1'
+    line: 'net.ipv6.conf.all.forwarding=1'
+
+- name: Remove default virsh network, define and start ipv6_default network
+  block:
+    - name: Copy ipv6_default.xml file to /tmp
+      ansible.builtin.copy:
+        src: files/tmp/ipv6_default.xml
+        dest: /tmp/ipv6_default.xml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: virsh net-undefine default
+      ansible.builtin.raw: virsh net-undefine default
+      ignore_errors: true
+
+    - name: Restart libvirtd
+      ansible.builtin.systemd:
+        name: libvirtd
+        state: restarted
+
+    - name: virsh net-define ipv6_default.xml
+      ansible.builtin.raw: virsh net-define /tmp/ipv6_default.xml
+      ignore_errors: true
+
+    - name: virsh net-autostart (new) default network
+      ansible.builtin.raw: virsh net-autostart default
+      ignore_errors: true
+
+    - name: virsh net-start (new) default network
+      ansible.builtin.raw: virsh net-start default
+      ignore_errors: true
+
+    - name: Restart libvirtd
+      ansible.builtin.systemd:
+        name: libvirtd
+        state: restarted
+  run_once: true
+
+...
